@@ -54,10 +54,17 @@ func (m *Master) DoJob(args *WorkerMsg, reply *MasterMsg) error {
 		//判断是不是超时任务，因为超时的任务会被重新安排
 		for _, item := range m.mapJob {
 			if fileName == item.FileName {
-				fmt.Println("=========time model=========")
-				fmt.Println("任务名", fileName)
-				fmt.Println("时间功能模块: 完成时间:", jobTime.Unix(), "开始时间", item.JobTime.Unix())
-				fmt.Println("=========time model test end==========")
+				// fmt.Println("=========time model=========")
+				// fmt.Println("任务名", fileName)
+				// fmt.Println("时间功能模块: 完成时间:", jobTime.Unix(), "开始时间", item.JobTime.Unix())
+				// fmt.Println("=========time model test end==========")
+				if jobTime.Unix()-item.JobTime.Unix() > 1 {
+					//todo:重新把任务加入mapFiles队列
+					m.mapFiles = append(m.mapFiles, fileName)
+					fmt.Println("cur mapFiles", m.mapFiles)
+				} else {
+					//合并map创建的临时文件
+				}
 			}
 		}
 		fmt.Println(fileName, "任务完成")
@@ -102,10 +109,11 @@ func (m *Master) DoJob(args *WorkerMsg, reply *MasterMsg) error {
 	}
 	//所有任务完成worker退出
 	if len(m.mapFiles) == 0 && m.mapFinished == m.mMap {
+		fmt.Println("Happy End2")
 		reply.Message.JobType = MAPDONE
 	}
 
-	fmt.Println(fileName, jobTime, jobType)
+	fmt.Println(len(m.mapFiles), m.mapFinished == m.mMap)
 
 	return nil
 }
@@ -134,6 +142,9 @@ func (m *Master) Done() bool {
 	ret := false
 
 	// Your code here.
+	if len(m.mapFiles) == 0 && m.mapFinished == m.mMap {
+		ret = true
+	}
 
 	return ret
 }

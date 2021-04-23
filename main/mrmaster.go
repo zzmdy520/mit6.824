@@ -24,6 +24,6 @@ func main() {
 	for m.Done() == false {
 		time.Sleep(time.Second)
 	}
-
+	fmt.Println("job Finished")
 	time.Sleep(time.Second)
 }
