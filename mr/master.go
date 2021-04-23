@@ -7,6 +7,7 @@ import "net/rpc"
 import "net/http"
 import "time"
 import "fmt"
+import "strconv"
 
 const MAP = 0
 const REDUCE = 1
@@ -47,8 +48,18 @@ func (m *Master) DoJob(args *WorkerMsg, reply *MasterMsg) error {
 	fileName := job.FileName
 	jobTime := job.JobTime
 	jobType := job.JobType
+
 	//如果类型是完成,把任务从正在做的队列中删除，同时完成计数器+1
 	if args.Message.JobType == MAPSUCCESS {
+		//判断是不是超时任务，因为超时的任务会被重新安排
+		for _, item := range m.mapJob {
+			if fileName == item.FileName {
+				fmt.Println("=========time model=========")
+				fmt.Println("任务名", fileName)
+				fmt.Println("时间功能模块: 完成时间:", jobTime.Unix(), "开始时间", item.JobTime.Unix())
+				fmt.Println("=========time model test end==========")
+			}
+		}
 		fmt.Println(fileName, "任务完成")
 		for i := 0; i < len(m.mapJob); i++ {
 			fmt.Println(m.mapJob[i].FileName)
@@ -132,15 +143,24 @@ func (m *Master) Done() bool {
 // main/mrmaster.go calls this function.
 // nReduce is the number of reduce tasks to use.
 //
+
 func MakeMaster(files []string, nReduce int) *Master {
 	m := Master{}
-
 	// Your code here.
 	m.nReduce = nReduce
 	m.mMap = len(files)
 	m.mapFiles = files
 	m.mapFinished = 0
 	m.reduceFinished = 0
+
+	for i := 0; i < nReduce; i++ {
+		//文件的创建，Create会根据传入的文件名创建文件，默认权限是0666
+		file, err := os.Create("Reduce_" + strconv.Itoa(i) + ".txt")
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer file.Close()
+	}
 	m.server()
 	return &m
 }

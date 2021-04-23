@@ -5,6 +5,9 @@ import "log"
 import "net/rpc"
 import "hash/fnv"
 import "time"
+import "os"
+import "io/ioutil"
+import "strconv"
 
 //
 // Map functions return a slice of KeyValue.
@@ -29,8 +32,18 @@ func ihash(key string) int {
 //
 func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
-
+	var f [16]*os.File
+	var err error
+	for i := 0; i < 10; i++ {
+		oname := "Reduce_" + strconv.Itoa(i) + ".txt"
+		fmt.Println(oname)
+		f[i], err = os.OpenFile(oname, os.O_APPEND|os.O_RDWR, 0777) //打开文件
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
 	// Your worker implementation here.
+	//打开文件
 
 	for {
 		args := WorkerMsg{}
@@ -50,20 +63,46 @@ func Worker(mapf func(string, string) []KeyValue,
 		//mapdojob
 		if reply.Message.JobType == MAP {
 			fmt.Println("mapping")
-		}
 
+			filename := reply.Message.FileName
+			file, err := os.Open(filename)
+			if err != nil {
+				log.Fatalf("cannot open %v", filename)
+			}
+			content, err := ioutil.ReadAll(file)
+			if err != nil {
+				log.Fatalf("cannot read %v", filename)
+			}
+			file.Close()
+			kva := mapf(filename, string(content)) //filename在mapf里没用到 返回 []mr.KeyValue
+			//fmt.Println(string(content))
+			for i, kv := range kva {
+				n := ihash(kv.Key) % 10
+				fmt.Fprintf(f[n], "%v %v\n", kva[i].Key, kva[i].Value)
+				//fmt.Println(n, kva[i].Key, kva[i].Value)
+			}
+		}
+		//mapdojob结束
+		//反馈信息 注意10s超时的限制
+		time.Sleep(time.Second)
 		args.Message.JobType = MAPSUCCESS
 		args.Message.JobTime = time.Now()
 		args.Message.FileName = reply.Message.FileName
 		//设置map参数
 		call("Master.DoJob", &args, &reply)
 
+		//reduce任务
 		if reply.Message.JobType == MAPDONE {
 			break
 		}
 
 	}
 
+	//关闭文件
+	for i := 0; i < 10; i++ {
+		f[i].Close()
+
+	}
 }
 
 //
