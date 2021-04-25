@@ -59,24 +59,32 @@ func (m *Master) DoJob(args *WorkerMsg, reply *MasterMsg) error {
 				// fmt.Println("时间功能模块: 完成时间:", jobTime.Unix(), "开始时间", item.JobTime.Unix())
 				// fmt.Println("=========time model test end==========")
 				if jobTime.Unix()-item.JobTime.Unix() > 1 {
-					//todo:重新把任务加入mapFiles队列
+					//todo:重新把任务加入mapFiles队列 badjob
+					for i := 0; i < len(m.mapJob); i++ {
+						if m.mapJob[i].FileName == fileName {
+							//从mapjob中删除该任务
+							m.mapJob = append(m.mapJob[:i], m.mapJob[i+1:]...)
+						}
+					}
 					m.mapFiles = append(m.mapFiles, fileName)
 					fmt.Println("cur mapFiles", m.mapFiles)
 				} else {
 					//合并map创建的临时文件
+					fmt.Println(fileName, "任务完成")
+					for i := 0; i < len(m.mapJob); i++ {
+						fmt.Println(m.mapJob[i].FileName)
+						if m.mapJob[i].FileName == fileName {
+							//从mapjob中删除该任务
+							m.mapJob = append(m.mapJob[:i], m.mapJob[i+1:]...)
+							m.mapFinished++
+						}
+						fmt.Println("任务完成数量:", m.mapFinished)
+					}
+
 				}
 			}
 		}
-		fmt.Println(fileName, "任务完成")
-		for i := 0; i < len(m.mapJob); i++ {
-			fmt.Println(m.mapJob[i].FileName)
-			if m.mapJob[i].FileName == fileName {
-				//从mapjob中删除该任务
-				m.mapJob = append(m.mapJob[:i], m.mapJob[i+1:]...)
-				m.mapFinished++
-			}
-			fmt.Println("任务完成数量:", m.mapFinished)
-		}
+
 		return nil
 	}
 	//先完成所有map
